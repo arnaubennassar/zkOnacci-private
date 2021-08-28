@@ -11,3 +11,4 @@ public.json
 witness.json
 witness.wtns
 .vscode
+contracts/verifier.sol

@@ -19,23 +19,20 @@ include "../node_modules/circomlib/circuits/smt/smtprocessor.circom";
  */
 template zkOnacci(nLevels) {
     signal private input senderInput;
-    // signal private input stateRoot;
+    signal private input stateRoot;
     signal private input n;
     signal private input Fn;
     // signal private input siblingsFn[nLevels];
     signal private input FnMinOne;
-    // signal private input siblingsFnMinOne[nLevels];
+    signal private input siblingsFnMinOne[nLevels+1];
     signal private input FnMinTwo;
-    // signal private input siblingsFnMinTwo[nLevels];
+    signal private input siblingsFnMinTwo[nLevels+1];
 
     signal output senderOutput;
-    // signal output currentRoot;
+    signal output currentRoot;
     // signal output newRoot;
 
     var i;
-
-    // TODO: REMOVE!
-    n === nLevels;
 
     // // Proof that n doesn't exist yet
     // // TODO: is this redundant because of the processor?
@@ -53,33 +50,33 @@ template zkOnacci(nLevels) {
 	// smtFnDoesntExists.key <== n;
 	// smtFnDoesntExists.value <== 0;
 
-    // // Proof that Fn-1 is already on the tree
-    // component smtFnMinOneExists = SMTVerifier(nLevels);
-	// smtFnMinOneExists.enabled <== 1;
-	// smtFnMinOneExists.fnc <== 0;
-	// smtFnMinOneExists.root <== stateRoot;
-	// for (i=0; i<nLevels; i++) {
-	// 	smtFnMinOneExists.siblings[i] <== siblingsFnMinOne[i];
-	// }
-	// smtFnMinOneExists.oldKey <== 0;
-	// smtFnMinOneExists.oldValue <== 0;
-	// smtFnMinOneExists.isOld0 <== 0;
-	// smtFnMinOneExists.key <== n-1;
-	// smtFnMinOneExists.value <== FnMinOne;
+    // Proof that Fn-1 is already on the tree
+    component smtFnMinOneExists = SMTVerifier(nLevels+1);
+	smtFnMinOneExists.enabled <== 1;
+	smtFnMinOneExists.fnc <== 0;
+	smtFnMinOneExists.root <== stateRoot;
+	for (i=0; i<nLevels+1; i++) {
+		smtFnMinOneExists.siblings[i] <== siblingsFnMinOne[i];
+	}
+	smtFnMinOneExists.oldKey <== 0;
+	smtFnMinOneExists.oldValue <== 0;
+	smtFnMinOneExists.isOld0 <== 0;
+	smtFnMinOneExists.key <== n-1;
+	smtFnMinOneExists.value <== FnMinOne;
     
-    // // Proof that Fn-2 is already on the tree
-    // component smtFnMinTwoExists = SMTVerifier(nLevels);
-	// smtFnMinTwoExists.enabled <== 1;
-	// smtFnMinTwoExists.fnc <== 0;
-	// smtFnMinTwoExists.root <== stateRoot;
-	// for (i=0; i<nLevels; i++) {
-	// 	smtFnMinTwoExists.siblings[i] <== siblingsFnMinTwo[i];
-	// }
-	// smtFnMinTwoExists.oldKey <== 0;
-	// smtFnMinTwoExists.oldValue <== 0;
-	// smtFnMinTwoExists.isOld0 <== 0;
-	// smtFnMinTwoExists.key <== n-2;
-	// smtFnMinTwoExists.value <== FnMinTwo;
+    // Proof that Fn-2 is already on the tree
+    component smtFnMinTwoExists = SMTVerifier(nLevels+1);
+	smtFnMinTwoExists.enabled <== 1;
+	smtFnMinTwoExists.fnc <== 0;
+	smtFnMinTwoExists.root <== stateRoot;
+	for (i=0; i<nLevels+1; i++) {
+		smtFnMinTwoExists.siblings[i] <== siblingsFnMinTwo[i];
+	}
+	smtFnMinTwoExists.oldKey <== 0;
+	smtFnMinTwoExists.oldValue <== 0;
+	smtFnMinTwoExists.isOld0 <== 0;
+	smtFnMinTwoExists.key <== n-2;
+	smtFnMinTwoExists.value <== FnMinTwo;
     
     // Assert that Fn-2 + Fn-1 = Fn
     Fn === FnMinOne + FnMinTwo
@@ -103,7 +100,7 @@ template zkOnacci(nLevels) {
     // Output
     // TODO: should hash the output?
     senderOutput <== senderInput;
-    // currentRoot <== stateRoot;
+    currentRoot <== stateRoot;
     // newRoot <== processor.newRoot;
 }
 

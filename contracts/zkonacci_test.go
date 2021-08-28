@@ -16,6 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iden3/go-circom-prover-verifier/parsers"
 	"github.com/iden3/go-circom-prover-verifier/types"
+	"github.com/iden3/go-merkletree"
+	"github.com/iden3/go-merkletree/db/memory"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/go-playground/assert.v1"
 )
@@ -41,6 +43,7 @@ func newTestingEnv() (testingEnv, error) {
 		return testingEnv{}, err
 	}
 
+	auth.GasLimit = 99999999999
 	address := auth.From
 	genesisAlloc := map[common.Address]core.GenesisAccount{
 		address: {
@@ -76,9 +79,17 @@ func newTestingEnv() (testingEnv, error) {
 	}, nil
 }
 
-type input struct {
-	NMinusOne int `json:"nMinusOneFib"`
-	NMinusTwo int `json:"nMinusTwoFib"`
+const nLevels = 5
+
+type zkInput struct {
+	Sender           common.Address     `json:"senderInput"`
+	Root             *merkletree.Hash   `json:"stateRoot"`
+	N                int                `json:"n"`
+	Fn               int                `json:"Fn"`
+	FnMinOne         int                `json:"FnMinOne"`
+	SiblingsFnMinOne []*merkletree.Hash `json:"siblingsFnMinOne"`
+	SiblingsFnMinTwo []*merkletree.Hash `json:"siblingsFnMinTwo"`
+	FnMinTwo         int                `json:"FnMinTwo"`
 }
 
 func TestMintNFT(t *testing.T) {
@@ -103,16 +114,33 @@ func TestMintNFT(t *testing.T) {
 		require.NoError(t, err)
 		tokenURIs = append(tokenURIs, baseURI+iURI)
 	}
+	// Calculate initial state
+	merkleTree, err := merkletree.NewMerkleTree(memory.NewMemoryStorage(), nLevels)
+	require.NoError(t, err)
+	require.NoError(t, merkleTree.Add(big.NewInt(0), big.NewInt(0)))
+	require.NoError(t, merkleTree.Add(big.NewInt(1), big.NewInt(1)))
 	// Mint all tokens +1 (to test that the supply is limited as expected)
-	var mintedTokens uint16
+	var n uint16 = 2
 	maxTier := tokenTiers[len(tokenTiers)-1]
-	nMinusOneFib := 1
-	nMinusTwoFib := 1
-	testEnv.auth.GasLimit = 99999999999
-	for mintedTokens < maxTier+2 {
-		fmt.Printf("Minting NFT #%d, nMinusOne = %d, nMinusTwo = %d, nFib = %d\n", mintedTokens, nMinusOneFib, nMinusTwoFib, nMinusOneFib+nMinusTwoFib)
+	FnMinOne := 1
+	FnMinTwo := 0
+	for n < maxTier+2 {
+		fmt.Printf("Minting NFT #%d, nMinusOne = %d, nMinusTwo = %d, nFib = %d\n", n, FnMinOne, FnMinTwo, FnMinOne+FnMinTwo)
 		// Generate proof
-		proofA, proofB, proofC, output, err := generateProof(nMinusOneFib, nMinusTwoFib)
+		mtpNMinOne, err := merkleTree.GenerateCircomVerifierProof(big.NewInt(int64(n-1)), nil)
+		require.NoError(t, err)
+		mtpNMinTwo, err := merkleTree.GenerateCircomVerifierProof(big.NewInt(int64(n-2)), nil)
+		require.NoError(t, err)
+		proofA, proofB, proofC, _, err := generateProof(zkInput{
+			Sender:           testEnv.auth.From,
+			Root:             merkleTree.Root(),
+			N:                int(n),
+			Fn:               FnMinOne + FnMinTwo,
+			FnMinOne:         FnMinOne,
+			SiblingsFnMinOne: mtpNMinOne.Siblings,
+			SiblingsFnMinTwo: mtpNMinTwo.Siblings,
+			FnMinTwo:         FnMinTwo,
+		})
 		require.NoError(t, err)
 		// Capture the flag (mint token): send tx
 		nonce, err := testEnv.client.NonceAt(context.Background(), testEnv.auth.From, nil)
@@ -123,47 +151,45 @@ func TestMintNFT(t *testing.T) {
 			proofA,
 			proofB,
 			proofC,
-			output,
 		)
 		require.NoError(t, err)
 		testEnv.client.Commit()
 		txReceipt, err := testEnv.client.TransactionReceipt(context.Background(), tx.Hash())
 		require.NoError(t, err)
-		if mintedTokens < maxTier+1 { // New token should have been minted
+		if n < maxTier+1 { // New token should have been minted
 			// No error on tx
 			require.Equal(t, uint64(1), txReceipt.Status)
 			// Assert owner
-			owner, err := testEnv.zkOnacci.OwnerOf(callOpts, big.NewInt(int64(mintedTokens)))
+			owner, err := testEnv.zkOnacci.OwnerOf(callOpts, big.NewInt(int64(n-2)))
 			require.NoError(t, err)
 			assert.Equal(t, testEnv.auth.From, owner)
 			// Assert tokenURI
-			uri, err := testEnv.zkOnacci.TokenURI(callOpts, big.NewInt(int64(mintedTokens)))
+			uri, err := testEnv.zkOnacci.TokenURI(callOpts, big.NewInt(int64(n-2)))
 			require.NoError(t, err)
-			assert.Equal(t, expectedURI(mintedTokens, tokenTiers, tokenURIs), uri)
-			mintedTokens++
-			tmpMinusOne := nMinusOneFib
-			nMinusOneFib += nMinusTwoFib
-			nMinusTwoFib = tmpMinusOne
+			assert.Equal(t, expectedURI(n, tokenTiers, tokenURIs), uri)
+			// Values for next iteration
+			n++
+			tmpMinusOne := FnMinOne
+			FnMinOne += FnMinTwo
+			FnMinTwo = tmpMinusOne
+			require.NoError(t, merkleTree.Add(big.NewInt(int64(n)), big.NewInt(int64(FnMinOne+FnMinTwo))))
+			break
 		} else { // All tokens already minted
 			assert.Equal(t, uint64(0), txReceipt.Status)
 			// TODO: should receive "ZKOnacci::captureTheFlag: ALL_TOKENS_MINTED"
 			break
 		}
 	}
-	// Try to mint an additional token
 }
 
-func generateProof(nMinusOneFib, nMinusTwoFib int) (
+func generateProof(input zkInput) (
 	proofA [2]*big.Int,
 	proofB [2][2]*big.Int,
 	proofC [2]*big.Int,
 	output [1]*big.Int,
 	err error,
 ) {
-	inputJson, err := json.Marshal(input{
-		NMinusOne: nMinusOneFib,
-		NMinusTwo: nMinusTwoFib,
-	})
+	inputJson, err := json.Marshal(input)
 	if err != nil {
 		return
 	}
@@ -171,11 +197,20 @@ func generateProof(nMinusOneFib, nMinusTwoFib int) (
 		return
 	}
 	// Calculate witness
-	if err = exec.Command(`snarkjs`, `wtns`, `calculate`, `../circuits/zkOnacci.wasm`, `../circuits/input.json`, `../circuits/witness.wtns`).Run(); err != nil {
+	var cmdOut []byte
+	if cmdOut, err = exec.Command(
+		`snarkjs`, `wtns`, `calculate`,
+		`../circuits/zkOnacci.wasm`, `../circuits/input.json`, `../circuits/witness.wtns`,
+	).Output(); err != nil {
+		fmt.Println(string(cmdOut))
 		return
 	}
 	// Generate proof
-	if err = exec.Command(`snarkjs`, `groth16`, `prove`, `../circuits/zkOnacci_final.zkey`, `../circuits/witness.wtns`, `../circuits/proof.json`, `../circuits/public.json`).Run(); err != nil {
+	if cmdOut, err = exec.Command(`snarkjs`, `groth16`, `prove`,
+		`../circuits/zkOnacci_final.zkey`, `../circuits/witness.wtns`,
+		`../circuits/proof.json`, `../circuits/public.json`,
+	).Output(); err != nil {
+		fmt.Println(string(cmdOut))
 		return
 	}
 	proofJSON, err := ioutil.ReadFile("../circuits/proof.json")
@@ -195,7 +230,7 @@ func generateProof(nMinusOneFib, nMinusTwoFib int) (
 	return [2]*big.Int{a0, a1},
 		[2][2]*big.Int{{b00, b01}, {b10, b11}},
 		[2]*big.Int{c0, c1},
-		[1]*big.Int{big.NewInt(int64(nMinusOneFib + nMinusTwoFib))},
+		[1]*big.Int{},
 		nil
 }
 

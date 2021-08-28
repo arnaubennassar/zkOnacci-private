@@ -8,15 +8,16 @@ Keep in mind that the goal is not to preserve privacy in terms of who knows whic
 
 ## Requirements
 
+- [Node 14](https://nodejs.org/en/), it's recommende to use [nvm](https://github.com/nvm-sh/nvm) to easily choose the right version (14.17.5)
 - Circom: `npm install -g circom`
 - snarkJS: `npm install -g snarkjs`
 - [Geth tooling](https://github.com/ethereum/go-ethereum#executables)
 - [Solidity compiler (solc)](https://docs.soliditylang.org/en/v0.8.6/installing-solidity.html), it's recommended to use [solc-select](https://github.com/crytic/solc-select) to easily choose the right version (0.8.6)
-- [Go](https://golang.org/doc/install)
+- [Go 1.16](https://golang.org/doc/install)
 
 ## Setup
 
-Install dependencies: `npm i`
+Install dependencies: `npm i`. Note that this will run the common phase of the trusted setup, for testing purposes.
 
 ## Build
 
@@ -24,11 +25,11 @@ Install dependencies: `npm i`
 - Compile circuits only: `npm build-circuits`
 - Compile contracts only: `npm build-contracts`
 
-You may need to manually change the solidity version of `verifier.sol`
+Note that it's required to rebuild the contracts if the circuits are changed in order to be able to run tests. Therefore it's recommended to use always `npn run build` unless changes only affect contracts, in this case it's safe and faster to use `npm run build-contracts`
 
 ## Test
 
-Run tests: `npm test`
+Run tests: `npm test` or `cd contracts && go test -v`
 
 ## Architecture
 
