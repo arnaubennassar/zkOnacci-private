@@ -6,6 +6,30 @@ Flags will be deployed on Ethereum in a form of NFTs (note that in the current s
 
 Keep in mind that the goal is not to preserve privacy in terms of who knows which number of the series, but to obfuscate the problem in a way that is hard for the CTF players to know what they have to input. It would be very obvious what to do if the SC calculated the next value of the sequence and pass it as output of the circuit.
 
+## Requirements
+
+- Circom: `npm install -g circom`
+- snarkJS: `npm install -g snarkjs`
+- [Geth tooling](https://github.com/ethereum/go-ethereum#executables)
+- [Solidity compiler (solc)](https://docs.soliditylang.org/en/v0.8.6/installing-solidity.html), it's recommended to use [solc-select](https://github.com/crytic/solc-select) to easily choose the right version (0.8.6)
+- [Go](https://golang.org/doc/install)
+
+## Setup
+
+Install dependencies: `npm i`
+
+## Build
+
+- Compile everything: `npm build`
+- Compile circuits only: `npm build-circuits`
+- Compile contracts only: `npm build-contracts`
+
+You may need to manually change the solidity version of `verifier.sol`
+
+## Test
+
+Run tests: `npm test`
+
 ## Architecture
 
 In order to obfuscate the solution (a valid proof that demonstrates the knowledge of the next number of the fibonacci sequence), the problem will be represented as a MT of fixed size. This MT will be built by adding the nth value of the fibonacci sequence to the nth leafs:

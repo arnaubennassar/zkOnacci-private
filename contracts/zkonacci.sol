@@ -1,7 +1,7 @@
 pragma solidity ^0.8.6;
 
 import * as _verifier from "./verifier.sol";
-import "./imports/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract ZKOnacci is ERC721 {
     // NFT metadata

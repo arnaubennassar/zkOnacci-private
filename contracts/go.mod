@@ -8,9 +8,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.6
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/iden3/go-circom-prover-verifier v0.0.1
-	github.com/iden3/go-circom-witnesscalc v0.0.1
-	github.com/iden3/go-iden3-crypto v0.0.6-0.20210308142348-8f85683b2cef // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
