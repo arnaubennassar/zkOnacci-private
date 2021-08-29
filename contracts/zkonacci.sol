@@ -20,6 +20,7 @@ contract ZKOnacci is ERC721 {
     _verifier.Verifier private verifier;
 
     constructor(address verifierAddr) public ERC721 ("zkOnacci", "ZKO"){
+        // TODO: consider starting with the 3 firdt numbers [0,1,1]
         // Set the first two numbers of the sequence [0, 1]
         tokenCounter = 0;
         root = 19733998167332688543494136895553318319796515049857122158390636597337826955912;
@@ -29,7 +30,8 @@ contract ZKOnacci is ERC721 {
     function captureTheFlag (
             uint[2] memory proofA,
             uint[2][2] memory proofB,
-            uint[2] memory proofC
+            uint[2] memory proofC,
+            uint256 nextRoot
     ) public returns (uint256) {
         // Check if all tokens have been minted
         require(
@@ -42,14 +44,15 @@ contract ZKOnacci is ERC721 {
                 proofA, proofB, proofC,
                 [
                     uint256(uint160(msg.sender)),
-                    root
-                    // nextRoot
+                    root,
+                    nextRoot
                 ]
             ) == true,
             "ZKOnacci::captureTheFlag: INVALID_ZK_PROOF"
         );
         // Mint NFT
-        return mintNFT();
+        mintNFT();
+        root = nextRoot;
     }
 
     function mintNFT() private returns (uint256) {

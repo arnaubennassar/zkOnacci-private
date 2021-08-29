@@ -8,10 +8,10 @@ Keep in mind that the goal is not to preserve privacy in terms of who knows whic
 
 ## Requirements
 
-- [Node 14](https://nodejs.org/en/), it's recommende to use [nvm](https://github.com/nvm-sh/nvm) to easily choose the right version (14.17.5)
+- [Node](https://nodejs.org/en/), it's recommende to use [nvm](https://github.com/nvm-sh/nvm) to easily choose the right version (14.17.5)
 - Circom: `npm install -g circom`
 - snarkJS: `npm install -g snarkjs`
-- [Geth tooling](https://github.com/ethereum/go-ethereum#executables)
+- [Geth tooling](https://github.com/ethereum/go-ethereum#executables): abigen
 - [Solidity compiler (solc)](https://docs.soliditylang.org/en/v0.8.6/installing-solidity.html), it's recommended to use [solc-select](https://github.com/crytic/solc-select) to easily choose the right version (0.8.6)
 - [Go 1.16](https://golang.org/doc/install)
 

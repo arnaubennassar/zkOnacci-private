@@ -79,17 +79,21 @@ func newTestingEnv() (testingEnv, error) {
 	}, nil
 }
 
-const nLevels = 5
+const nLevels = 6
 
 type zkInput struct {
 	Sender           common.Address     `json:"senderInput"`
 	Root             *merkletree.Hash   `json:"stateRoot"`
 	N                int                `json:"n"`
 	Fn               int                `json:"Fn"`
+	SiblingsFn       []*merkletree.Hash `json:"siblingsFn"`
+	OldKeyFn         *merkletree.Hash   `json:"oldKeyFn"`
+	OldValueFn       *merkletree.Hash   `json:"oldValueFn"`
+	IsOld0Fn         bool               `json:"isOld0Fn"`
 	FnMinOne         int                `json:"FnMinOne"`
 	SiblingsFnMinOne []*merkletree.Hash `json:"siblingsFnMinOne"`
-	SiblingsFnMinTwo []*merkletree.Hash `json:"siblingsFnMinTwo"`
 	FnMinTwo         int                `json:"FnMinTwo"`
+	SiblingsFnMinTwo []*merkletree.Hash `json:"siblingsFnMinTwo"`
 }
 
 func TestMintNFT(t *testing.T) {
@@ -127,19 +131,28 @@ func TestMintNFT(t *testing.T) {
 	for n < maxTier+2 {
 		fmt.Printf("Minting NFT #%d, nMinusOne = %d, nMinusTwo = %d, nFib = %d\n", n, FnMinOne, FnMinTwo, FnMinOne+FnMinTwo)
 		// Generate proof
+		// Existence proofs for Fn-1 and Fn-2 BEFORE processing Fn
+		oldRoot := merkleTree.Root()
 		mtpNMinOne, err := merkleTree.GenerateCircomVerifierProof(big.NewInt(int64(n-1)), nil)
 		require.NoError(t, err)
 		mtpNMinTwo, err := merkleTree.GenerateCircomVerifierProof(big.NewInt(int64(n-2)), nil)
 		require.NoError(t, err)
+		// Add Fn and get processing proof
+		mtpN, err := merkleTree.AddAndGetCircomProof(big.NewInt(int64(n)), big.NewInt(int64(FnMinOne+FnMinTwo)))
+		require.NoError(t, err)
 		proofA, proofB, proofC, _, err := generateProof(zkInput{
 			Sender:           testEnv.auth.From,
-			Root:             merkleTree.Root(),
+			Root:             oldRoot,
 			N:                int(n),
 			Fn:               FnMinOne + FnMinTwo,
+			SiblingsFn:       mtpN.Siblings,
+			OldKeyFn:         mtpN.OldKey,
+			OldValueFn:       mtpN.OldValue,
+			IsOld0Fn:         mtpN.IsOld0,
 			FnMinOne:         FnMinOne,
 			SiblingsFnMinOne: mtpNMinOne.Siblings,
-			SiblingsFnMinTwo: mtpNMinTwo.Siblings,
 			FnMinTwo:         FnMinTwo,
+			SiblingsFnMinTwo: mtpNMinTwo.Siblings,
 		})
 		require.NoError(t, err)
 		// Capture the flag (mint token): send tx
@@ -151,12 +164,13 @@ func TestMintNFT(t *testing.T) {
 			proofA,
 			proofB,
 			proofC,
+			merkleTree.Root().BigInt(),
 		)
 		require.NoError(t, err)
 		testEnv.client.Commit()
 		txReceipt, err := testEnv.client.TransactionReceipt(context.Background(), tx.Hash())
 		require.NoError(t, err)
-		if n < maxTier+1 { // New token should have been minted
+		if n-2 < maxTier+1 { // New token should have been minted
 			// No error on tx
 			require.Equal(t, uint64(1), txReceipt.Status)
 			// Assert owner
@@ -166,14 +180,12 @@ func TestMintNFT(t *testing.T) {
 			// Assert tokenURI
 			uri, err := testEnv.zkOnacci.TokenURI(callOpts, big.NewInt(int64(n-2)))
 			require.NoError(t, err)
-			assert.Equal(t, expectedURI(n, tokenTiers, tokenURIs), uri)
+			assert.Equal(t, expectedURI(n-2, tokenTiers, tokenURIs), uri)
 			// Values for next iteration
 			n++
 			tmpMinusOne := FnMinOne
 			FnMinOne += FnMinTwo
 			FnMinTwo = tmpMinusOne
-			require.NoError(t, merkleTree.Add(big.NewInt(int64(n)), big.NewInt(int64(FnMinOne+FnMinTwo))))
-			break
 		} else { // All tokens already minted
 			assert.Equal(t, uint64(0), txReceipt.Status)
 			// TODO: should receive "ZKOnacci::captureTheFlag: ALL_TOKENS_MINTED"
