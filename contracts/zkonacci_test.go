@@ -2,19 +2,16 @@ package contracts
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"os/exec"
 	"testing"
 
+	"github.com/arnaubennassar/zkOnacci/contracts/zkinputs"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/iden3/go-circom-prover-verifier/parsers"
 	"github.com/iden3/go-circom-prover-verifier/types"
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/memory"
@@ -81,21 +78,6 @@ func newTestingEnv() (testingEnv, error) {
 
 const nLevels = 6
 
-type zkInput struct {
-	Sender           common.Address     `json:"senderInput"`
-	Root             *merkletree.Hash   `json:"stateRoot"`
-	N                int                `json:"n"`
-	Fn               int                `json:"Fn"`
-	SiblingsFn       []*merkletree.Hash `json:"siblingsFn"`
-	OldKeyFn         *merkletree.Hash   `json:"oldKeyFn"`
-	OldValueFn       *merkletree.Hash   `json:"oldValueFn"`
-	IsOld0Fn         bool               `json:"isOld0Fn"`
-	FnMinOne         int                `json:"FnMinOne"`
-	SiblingsFnMinOne []*merkletree.Hash `json:"siblingsFnMinOne"`
-	FnMinTwo         int                `json:"FnMinTwo"`
-	SiblingsFnMinTwo []*merkletree.Hash `json:"siblingsFnMinTwo"`
-}
-
 func TestMintNFT(t *testing.T) {
 	// Set up testing environment
 	testEnv, err := newTestingEnv()
@@ -140,7 +122,7 @@ func TestMintNFT(t *testing.T) {
 		// Add Fn and get processing proof
 		mtpN, err := merkleTree.AddAndGetCircomProof(big.NewInt(int64(n)), big.NewInt(int64(FnMinOne+FnMinTwo)))
 		require.NoError(t, err)
-		proofA, proofB, proofC, _, err := generateProof(zkInput{
+		proofA, proofB, proofC, err := zkinputs.GenerateProof(zkinputs.ZKInput{
 			Sender:           testEnv.auth.From,
 			Root:             oldRoot,
 			N:                int(n),
@@ -153,7 +135,7 @@ func TestMintNFT(t *testing.T) {
 			SiblingsFnMinOne: mtpNMinOne.Siblings,
 			FnMinTwo:         FnMinTwo,
 			SiblingsFnMinTwo: mtpNMinTwo.Siblings,
-		})
+		}, "../circuits")
 		require.NoError(t, err)
 		// Capture the flag (mint token): send tx
 		nonce, err := testEnv.client.NonceAt(context.Background(), testEnv.auth.From, nil)
@@ -192,58 +174,6 @@ func TestMintNFT(t *testing.T) {
 			break
 		}
 	}
-}
-
-func generateProof(input zkInput) (
-	proofA [2]*big.Int,
-	proofB [2][2]*big.Int,
-	proofC [2]*big.Int,
-	output [1]*big.Int,
-	err error,
-) {
-	inputJson, err := json.Marshal(input)
-	if err != nil {
-		return
-	}
-	if err = ioutil.WriteFile(`../circuits/input.json`, inputJson, 0777); err != nil {
-		return
-	}
-	// Calculate witness
-	var cmdOut []byte
-	if cmdOut, err = exec.Command(
-		`snarkjs`, `wtns`, `calculate`,
-		`../circuits/zkOnacci.wasm`, `../circuits/input.json`, `../circuits/witness.wtns`,
-	).Output(); err != nil {
-		fmt.Println(string(cmdOut))
-		return
-	}
-	// Generate proof
-	if cmdOut, err = exec.Command(`snarkjs`, `groth16`, `prove`,
-		`../circuits/zkOnacci_final.zkey`, `../circuits/witness.wtns`,
-		`../circuits/proof.json`, `../circuits/public.json`,
-	).Output(); err != nil {
-		fmt.Println(string(cmdOut))
-		return
-	}
-	proofJSON, err := ioutil.ReadFile("../circuits/proof.json")
-	if err != nil {
-		return
-	}
-	proof, err := parsers.ParseProof(proofJSON)
-	proofSC := parsers.ProofToSmartContractFormat(proof)
-	a0, _ := big.NewInt(0).SetString(proofSC.A[0], 10)
-	a1, _ := big.NewInt(0).SetString(proofSC.A[1], 10)
-	b00, _ := big.NewInt(0).SetString(proofSC.B[0][0], 10)
-	b01, _ := big.NewInt(0).SetString(proofSC.B[0][1], 10)
-	b10, _ := big.NewInt(0).SetString(proofSC.B[1][0], 10)
-	b11, _ := big.NewInt(0).SetString(proofSC.B[1][1], 10)
-	c0, _ := big.NewInt(0).SetString(proofSC.C[0], 10)
-	c1, _ := big.NewInt(0).SetString(proofSC.C[1], 10)
-	return [2]*big.Int{a0, a1},
-		[2][2]*big.Int{{b00, b01}, {b10, b11}},
-		[2]*big.Int{c0, c1},
-		[1]*big.Int{},
-		nil
 }
 
 func expectedURI(id uint16, tokenTiers []uint16, tokenURIs []string) string {

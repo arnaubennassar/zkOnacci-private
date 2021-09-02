@@ -7,15 +7,15 @@ contract ZKOnacci is ERC721 {
     // Circuit
     uint256 public root;
     // NFT metadata
-    string constant public baseURI = "ipfs://";
+    string constant public baseURI = "https://ipfs.io/ipfs/";
     uint256 public tokenCounter;
     uint8 constant public nTiers = 4;
     uint16[nTiers] public tokenTiers = [2, 4, 8, 16];
     string[nTiers] public tokenURIs = [
-        "1", // 3 copies (0,1,2)
-        "2", // 2 copies (3,4)
-        "3", // 4 copies (5,6,7,8)
-        "4"  // 8 copies (9,10,...,16)
+        "bafkreignwngx3twej6cdn26hyaet3gg7scrtpgafkqjnkqtv37a2r6qf4u", // 3 copies (0,1,2)
+        "bafkreieltrnt62cd4pxcvbygjo6whdtnzlqzkmp2snvhn34dmy63aj5unq", // 2 copies (3,4)
+        "bafkreif3oub75tmg2qyh2mzsvyqeyxac7xfjy5itrb6rle7yxb6wo56jji", // 4 copies (5,6,7,8)
+        "bafkreif5kgo5c2pool3s5bvnjo7gsxast45yioagh6tfhxfp5aae67ut6m"  // 8 copies (9,10,...,16)
     ];
     _verifier.Verifier private verifier;
 

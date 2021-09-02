@@ -31,7 +31,30 @@ Note that it's required to rebuild the contracts if the circuits are changed in 
 
 Run tests: `npm test` or `cd contracts && go test -v`
 
-## Architecture
+## Deploy
+
+Deploy contracts to the blockchain:
+
+1. Provide the following env vars:
+   1. `WEB3_URL`: URL of the Ethereum node you will use to send the transactions
+   2. `PRIVATE_KEY`: Ethereum private key with funds to deploy the SCs (without the `0x`)
+2. Run: `npm run deploy`
+
+Example: `WEB3_URL="https://rinkeby.infura.io/v3/********************************" PRIVATE_KEY="****************************************************************" npm run deploy`
+
+## Capture the flag
+
+Working solution to mint the next NFT (capture the flag):
+
+1. Provide the following env vars:
+   1. `WEB3_URL`: URL of the Ethereum node you will use to send the transactions
+   2. `PRIVATE_KEY`: Ethereum private key with funds to deploy the SCs
+   3. `SC_ADDR`: Address of the zkOnacci smart contract
+2. Run: `npm run deploy`
+
+Example: `SC_ADDR="0x36E9CA815e61d1C7a171E638Af5681e4aB8ACc65" WEB3_URL="https://rinkeby.infura.io/v3/********************************" PRIVATE_KEY="****************************************************************" npm run ctf`
+
+## Architecture (probably outdated)
 
 In order to obfuscate the solution (a valid proof that demonstrates the knowledge of the next number of the fibonacci sequence), the problem will be represented as a MT of fixed size. This MT will be built by adding the nth value of the fibonacci sequence to the nth leafs:
 

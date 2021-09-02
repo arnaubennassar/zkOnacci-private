@@ -1,4 +1,4 @@
-module github.com/arnaubennassar/zkOnacci/contracts
+module github.com/arnaubennassar/zkOnacci
 
 go 1.16
 
